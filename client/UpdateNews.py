@@ -14,10 +14,10 @@ from wordpress_xmlrpc.methods.users import GetUserInfo
 
 
 # FTP配置
-ftp_host = '124.228.174.50'
-ftp_user = 'sw'
-ftp_passwd = '0000'
-ftp_home = "/zt/ftp_news" #数据包保存位置，必须与服务器端脚本保持一致
+ftp_host = ''
+ftp_user = ''
+ftp_passwd = ''
+ftp_home = "" #数据包保存位置，必须与服务器端脚本保持一致
 
 # 脚本配置
 web_root = r"D:\wordpress" #网站根目录
@@ -25,8 +25,8 @@ web_root = r"D:\wordpress" #网站根目录
 
 # WordPress登录配置
 wp_host="http://192.168.1.193" # http协议头必须写上
-wp_user="Robot" # 发布新闻的账号身份设置为“作者”
-wp_passwd="root1234"
+wp_user="robot" # 发布新闻的账号身份设置为“作者”
+wp_passwd="robot"
 
 # 其它变量
 today = str( datetime.date.today() ) # 今天的日期 格式：2018-10-01

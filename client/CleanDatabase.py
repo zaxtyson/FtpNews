@@ -10,13 +10,13 @@ import shutil
 # Mysql配置
 hostname = "127.0.0.1"
 username = "root"
-password = "_cqmyg_"
+password = "root"
 database = "wordpress"
 
 # 其它配置
 web_root = r"D:\wordpress"  # 网站根目录
 user_id = 2  # 文章发布者的id
-deadline = -3  # deadline天前的数据会被清理
+deadline = 30  # deadline天前的数据会被清理
 wp_img_dir = web_root + os.sep + "data" + os.sep + "images"  # 新闻图片存放地址
 
 deadline = datetime.date.today() - datetime.timedelta(days=deadline)

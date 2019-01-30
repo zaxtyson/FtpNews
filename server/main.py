@@ -10,16 +10,16 @@ from os.path import join, getsize
 import shutil
 
 # config
-home=r"D:\test" #root fold of spider
-res_dir="/data/images" #pic_link to local
-date_filter=0 # get today's acti
-key_filter=[] # keyword check
+home = r"D:\test" #root fold of spider
+res_dir = "/data/images" #pic_link to local
+date_filter = 0 # get today's acti
+key_filter = [] # keyword check
 
 # ftp config
-host="124.228.174.50"
-user="sw"
-passwd="0000"
-ftp_home="/zt/ftp_news"
+host = ""
+user = "sw"
+passwd = ""
+ftp_home = ""
 
 
 # other conf no need to change
@@ -76,7 +76,6 @@ def feedx(name,cat,tag,limit):
     write2json(spider.news_list,name + ".json")
 
 
-
 if os.path.exists(home) :
     shutil.rmtree(home)
     mkdir(home)
@@ -95,22 +94,6 @@ spider.set_date_filter(date_filter)
 spider.set_key_filter(key_filter)
 spider.run()
 write2json(spider.news_list,"36kr.json")
-
-
-# Daily
-# ip被官方封了
-''' 
-spider=XmlSpider("http://www.qdaily.com/feed.xml")
-spider.set_home(home)
-spider.set_category(["涨知识"])
-spider.set_tag(["好奇心日报"])
-spider.set_local_res_dir(res_dir)
-spider.set_date_format("%Y-%m-%d %H:%M:%S +0800")
-spider.set_date_filter(date_filter)
-spider.set_key_filter(key_filter)
-spider.run()
-write2json(spider.news_list,"qdaily.json")
-'''
 
 # Zhihu Daily
 spider=XmlSpider("http://www.zhihu.com/rss")
