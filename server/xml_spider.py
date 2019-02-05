@@ -111,7 +111,7 @@ class XmlSpider():
         # 网页编码处理
         try:
             xml = opener.open(url).read()
-            #code = chardet.detect(xml)["u"]
+            #code = chardet.detect(xml)["encoding"]
             xml = xml.decode("utf-8")
         except:
             return None
@@ -132,18 +132,22 @@ class XmlSpider():
         soup = BeautifulSoup(xml, "xml")
         item_list = soup.find_all("item")
         for item in item_list:
-            news = {}  # 一条新闻
-            if not item.pubDate:  # 日期不明的新闻跳过
+            try:
+                news = {}  # 一条新闻
+                if not item.pubDate:  # 日期不明的新闻跳过
+                    continue
+                news["title"] = item.title.get_text().strip()
+                news["body"] = item.description.get_text()
+                putdate = item.pubDate.get_text().strip()  # xml里面提取的不标准化的putDate字符串
+                date1 = time.mktime(time.strptime(putdate, self.date_format))  # 化为标准日期格式
+                date2 = time.strftime("%Y-%m-%d", time.localtime(date1))  # 统一使用年-月-日表示
+                news["date"] = str(date2)
+                news["category"] = self.category
+                news["tag"] = self.tag
+                self.news_list.append(news)
+            except:
+                self._log("解析过程错误...")
                 continue
-            news["title"] = item.title.get_text().strip()
-            news["body"] = item.description.get_text()
-            putdate = item.pubDate.get_text().strip()  # xml里面提取的不标准化的putDate字符串
-            date1 = time.mktime(time.strptime(putdate, self.date_format))  # 化为标准日期格式
-            date2 = time.strftime("%Y-%m-%d", time.localtime(date1))  # 统一使用年-月-日表示
-            news["date"] = str(date2)
-            news["category"] = self.category
-            news["tag"] = self.tag
-            self.news_list.append(news)
 
     def _download(self, url, save_path, file_name):
         """内部调用，下载文件"""
@@ -179,11 +183,14 @@ class XmlSpider():
         """内部调用，日期过滤，默认保留今天的文章"""
         save_list = []  # 不能在循环中使用list的remove()方法，这样会让一些元素逃过删除，这里弄一个新的列表保存匹配的文章
         for news in self.news_list:
-            if news["date"] == self.date_filter:
-                self._log("保留该文章:(%s)%s" % (news["date"], news["title"]))
-                save_list.append(news)
-            else:
-                self._log("因日期过滤:(%s)%s" % (news["date"], news["title"]))
+            try:
+                if news["date"] == self.date_filter:
+                    self._log("保留该文章:(%s)%s" % (news["date"], news["title"]))
+                    save_list.append(news)
+                else:
+                    self._log("因日期过滤:(%s)%s" % (news["date"], news["title"]))
+            except:
+                continue
         self.news_list = save_list
 
     def _limit_pages(self):
@@ -218,5 +225,7 @@ class XmlSpider():
             num = len(self.news_list)
             self._log("总计爬取%s篇文章" % num)
             self._log("%s" % "=" * 120)
+            return True
         except Exception as e:
             print("发生错误:", e)
+            return False

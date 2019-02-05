@@ -15,14 +15,14 @@ import shutil
 
 # Mysql配置
 hostname = "127.0.0.1"
-username = ""
-password = ""
-database = "wordpress"
+username = "root"
+password = "_cqmyg_"
+database = "hnyz"
 
 # 其它配置
 web_root = r"D:\wordpress"  # 网站根目录
 user_id = 2  # 文章发布者的id
-deadline = 30  # deadline天前的数据会被清理
+deadline = -1  # deadline天前的数据会被清理
 wp_img_dir = web_root + os.sep + "data" + os.sep + "images"  # 新闻图片存放地址
 
 deadline = datetime.date.today() - datetime.timedelta(days=deadline)
@@ -33,11 +33,11 @@ def execute(sql):
     try:
         db = pymysql.connect(hostname, username, password, database)
         cursor = db.cursor()
-        print("执行：" + sql)
+        #print("执行：" + sql)
         cursor.execute(sql)
         db.commit()
         result = cursor.fetchall()
-        print("结果：" + str(result) + "\n")
+        #print("结果：" + str(result) + "\n")
         return result
     except Exception as e:
         db.rollback()

@@ -28,5 +28,7 @@ class DBSpider(XmlSpider):
             num = len(self.news_list)
             self._log("总计爬取%s篇文章" % num)
             self._log("%s" % "=" * 120)
+            return True
         except Exception as e:
             print("发生错误:", e)
+            return False

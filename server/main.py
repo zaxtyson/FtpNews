@@ -20,7 +20,7 @@ import pymysql
 from urllib import parse
 
 # 爬虫配置
-home = '' # 爬虫工作路径，本地数据保存在这里
+home = '/root/ftp_news' # 爬虫工作路径，本地数据保存在这里
 res_dir = "/data/images" # 内网新闻网站图片存放地址，用于替换网页中的超链接
 date_filter = 0 # 日期过滤，保留第n天前的新闻
 key_filter = [] # 关键字过滤，标题包含该列表任意一个关键字的新闻会被干掉
@@ -29,10 +29,10 @@ key_filter = [] # 关键字过滤，标题包含该列表任意一个关键字�
 ftp_host = ''
 ftp_user = ''
 ftp_passwd = ''
-ftp_home = '' #ftp上保存新闻数据包的目录
+ftp_home = '/zt/ftp_news' #ftp上保存新闻数据包的目录
 
 # Mysql配置
-mysql_host = 'www.hnyz.fun' # 外网域名
+mysql_host = 'localhost' # 外网域名
 mysql_user = ''
 mysql_passwd = ''
 database = 'hnyz' # 外网数据库名
@@ -93,8 +93,8 @@ def feedx(name,cat,tag,limit):
     spider.set_local_res_dir(res_dir)
     spider.set_date_filter(date_filter)
     spider.set_key_filter(key_filter)
-    spider.run()
-    write2json(spider.news_list,name + ".json")
+    if spider.run():
+        write2json(spider.news_list,name + ".json")
 
 def execute(sql):
     """执行一条sql语句"""
@@ -126,55 +126,53 @@ news_list = []
 for post in data:
     body = parse.unquote(post[1],encoding="utf-8")
     body = body.replace("&amp;","&")
-    news = { "title":post[0],"body":body }
+    news = { "title":post[0],"body":body,"category":["外网同步"],"tag":["衡一引力圈数据同步"] }
     news_list.append(news)
 
 spider = DBSpider()
 spider.set_news_list(news_list)
 spider.set_home(home)
-spider.set_category(["外网同步"])
-spider.set_tag(["衡一引力圈数据同步"])
 spider.set_local_res_dir(res_dir)
-spider.run()
-write2json(spider.news_list,"sync.json")
+if spider.run():
+    write2json(spider.news_list,"sync.json")
 
 # 2.从其它网站爬取并解析feed数据
 # 360Kr
-# spider=XmlSpider()
-# spider.set_url("https://36kr.com/feed")
-# spider.set_home(home)
-# spider.set_category(["其它"])
-# spider.set_tag(["36氪"])
-# spider.set_local_res_dir(res_dir)
-# spider.set_date_filter(date_filter)
-# spider.set_key_filter(key_filter)
-# spider.run()
-# write2json(spider.news_list,"36kr.json")
-#
-# # 知乎日报
-# spider=XmlSpider()
-# spider.set_url("http://www.zhihu.com/rss")
-# spider.set_home(home)
-# spider.set_category(["涨知识"])
-# spider.set_tag(["知乎日报"])
-# spider.set_local_res_dir(res_dir)
-# spider.set_date_filter(date_filter)
-# spider.set_key_filter(key_filter)
-# spider.run()
-# write2json(spider.news_list,"zhihu.json")
+spider=XmlSpider()
+spider.set_url("https://36kr.com/feed")
+spider.set_home(home)
+spider.set_category(["其它"])
+spider.set_tag(["36氪"])
+spider.set_local_res_dir(res_dir)
+spider.set_date_filter(date_filter)
+spider.set_key_filter(key_filter)
+if spider.run():
+    write2json(spider.news_list,"36kr.json")
+
+# 知乎日报
+spider=XmlSpider()
+spider.set_url("http://www.zhihu.com/rss")
+spider.set_home(home)
+spider.set_category(["涨知识"])
+spider.set_tag(["知乎日报"])
+spider.set_local_res_dir(res_dir)
+spider.set_date_filter(date_filter)
+spider.set_key_filter(key_filter)
+if spider.run():
+    write2json(spider.news_list,"zhihu.json")
 
 # feedx
-# feedx("cnbetatop.xml",["其它"],["CnbetaTop"],5)
-# feedx("nytimesphoto.xml",["新闻"],["纽约时报图集"],5)
-# feedx("ft.xml",["新闻"],["FT中文网"],5)
-# feedx("reuters.xml",["新闻"],["路透社"],5)
-# feedx("bbc.xml",["新闻"],["英国BBC广播电台"],5)
-feedx("wikiindex.xml",["新闻"],["维基百科首页"],1)
-# feedx("abc.xml",["新闻"],["澳大利亚ABC电台"],5)
-# feedx("aljazeera.xml",["新闻"],["半岛新闻中文"],5)
-# feedx("ifanr.xml",["涨知识"],["爱范儿ifanr"],10)
-# feedx("zhidaodaily.xml",["新闻"],["百度知道日报"],6)
-#feedx("163easy.xml",["其它"],["网易轻松一刻"],3) #这鬼玩意数据量太大
+feedx("cnbetatop.xml",["其它"],["CnbetaTop"],5)
+feedx("nytimesphoto.xml",["新闻"],["纽约时报图集"],5)
+feedx("ft.xml",["新闻"],["FT中文网"],5)
+feedx("reuters.xml",["新闻"],["路透社"],5)
+feedx("bbc.xml",["新闻"],["英国BBC广播电台"],5)
+#feedx("wikiindex.xml",["新闻"],["维基百科首页"],1)
+feedx("abc.xml",["新闻"],["澳大利亚ABC电台"],5)
+feedx("aljazeera.xml",["新闻"],["半岛新闻中文"],5)
+feedx("ifanr.xml",["涨知识"],["爱范儿ifanr"],10)
+feedx("zhidaodaily.xml",["新闻"],["百度知道日报"],6)
+feedx("163easy.xml",["其它"],["网易轻松一刻"],3) #这鬼玩意数据量太大
 
 # 3.上传数据包到并备份
 zip_name = tomorrow + ".zip"
