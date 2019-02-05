@@ -8,7 +8,7 @@
 @time:2019/2/4 22:51
 """
 
-from server.xml_spider import XmlSpider
+from xml_spider import XmlSpider
 
 class DBSpider(XmlSpider):
     """数据库爬虫"""

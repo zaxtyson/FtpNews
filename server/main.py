@@ -8,8 +8,8 @@
 @time:2019/2/4 23:36
 """
 
-from server.xml_spider import XmlSpider
-from server.database_spider import DBSpider
+from xml_spider import XmlSpider
+from database_spider import DBSpider
 import json
 import datetime
 import ftplib
