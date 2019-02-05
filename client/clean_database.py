@@ -1,6 +1,12 @@
 #!python3
 # coding:utf-8
 
+"""
+@project:FtpNews
+@file:clean_database
+@author:zaxtyson
+@time:2019/2/4 23:37
+"""
 
 import pymysql
 import datetime
@@ -9,8 +15,8 @@ import shutil
 
 # Mysql配置
 hostname = "127.0.0.1"
-username = "root"
-password = "root"
+username = ""
+password = ""
 database = "wordpress"
 
 # 其它配置
