@@ -1,14 +1,17 @@
 # 数据规范
-> 写给自己看的，防止看不懂自己的代码
+> 写给自己看的，防止忘记
 
 ## 新闻分类
 
 - 新闻 news
     - 时政 politics
     - 科技 technology
-    - 外媒 foreign
+    - 涨知识 knowledge
+    - 其它 others
 
-- 外围同步 sync
+- 外网同步 sync
+    - 学习 learn
+    - 吐槽 complaint
 
 - 社团 society
     - 动漫社 acgclub
@@ -26,22 +29,23 @@
     - 青空文艺社 literature
     
 ## 新闻对象结构
-- 标题 title
-- 发布时间(时间戳) time_stamp
-- 内容 content
-- 分类 category []
-- 标签 tag []
+
 ```
  {
     "title": "标题",
     "time_stamp": "时间戳",
     "content": "正文内容",
-    "categrory": ["新闻","科技"],
-    "tag": ["果壳网","涨知识"]
+    "image_url":[],
+    "category": ["新闻","科技"],
+    "tag": ["果壳网","涨知识"],
+    "image_urls":[],
+    "video_urls":[],
+    "audio_urls":[]
     }
 ```
 ```
     # 时间戳转换方法
+    time_stamp = time.time()
     t = time.strptime("2019-01-30 08:20:19", "%Y-%m-%d %H:%M:%S") 
     time_stamp = time.mktime(t) # 保存
     datetime.datetime.utcfromtimestamp(time_stamp) # 发布时，float(time_stamp)
@@ -49,10 +53,10 @@
 ## 新闻数据包结构
 > 服务器端路径 {home}/news_data
 - %Y-%m-%d_%H-%M-%S.zip
-    - images
+    - resources
     - others
-    - news.json
-    - server.log
+    - news.bin
+    
 ## 服务器数据目录结构
 - home
     - news_data
@@ -67,12 +71,8 @@
 - wordpress
     - data
         - %Y-%m-%d
-            - images
-            - others
-            - server.log
+            - resources
         - %Y-%m-%d
-            - images
-            - others
-            - server.log
+            - resources
         - ...
         

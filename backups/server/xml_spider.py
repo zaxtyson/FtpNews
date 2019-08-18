@@ -1,4 +1,4 @@
-#!python3
+#!/usr/bin/python3
 # coding:utf-8
 
 """
@@ -8,17 +8,16 @@
 @time:2019/2/4 23:11
 """
 
-import urllib.request
-import urllib.error
-import chardet
-import time, datetime
-from bs4 import BeautifulSoup
-import urllib
-import re
-import sys
+import datetime
 import os
 import random
-import codecs
+import socket
+import ssl
+import time
+import urllib.request
+import urllib.response
+
+from bs4 import BeautifulSoup
 
 
 class XmlSpider():
@@ -40,7 +39,7 @@ class XmlSpider():
 
     def _log(self, info):
         """内部调用，日志记录"""
-        with codecs.open(self.log_file, 'a+', encoding="GBK") as mylog:
+        with open(self.log_file, 'a+') as mylog:
             log_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             info = "[%s]    %s" % (log_time, info)
             print(info)
@@ -103,20 +102,18 @@ class XmlSpider():
     def _get_html(self, url):
         """内部调用，返回html网页源码"""
         self._log("正在获取网页源码...")
-        # 伪装成浏览器
-        header = ("User-Agent",
-                  "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.104 Safari/537.36 Core/1.53.4549.400 QQBrowser/9.7.12900.400")
-        opener = urllib.request.build_opener()
-        opener.addheaders = [header]
-        # 网页编码处理
+        context = ssl._create_unverified_context()
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36"}
+        request = urllib.request.Request(url=url, headers=headers)
         try:
-            xml = opener.open(url).read()
-            #code = chardet.detect(xml)["encoding"]
-            xml = xml.decode("utf-8")
-        except:
+            response = urllib.request.urlopen(request, timeout=20, context=context)
+            xml = response.read()
+            self._log("页面字节数:" + str(len(xml)))
+            return xml.decode("utf-8") or xml.decode("gbk")
+        except Exception as e:
+            self._log(str(e))
             return None
-        else:
-            return xml
 
     def _analyze(self):
         """内部调用，解析xml源码，返回结果列表"""
@@ -133,9 +130,8 @@ class XmlSpider():
         item_list = soup.find_all("item")
         for item in item_list:
             try:
-                news = {}  # 一条新闻
-                if not item.pubDate:  # 日期不明的新闻跳过
-                    continue
+                news = {}
+                if not item.pubDate: continue  # 日期不明的新闻跳过
                 news["title"] = item.title.get_text().strip()
                 news["body"] = item.description.get_text()
                 putdate = item.pubDate.get_text().strip()  # xml里面提取的不标准化的putDate字符串
@@ -145,27 +141,30 @@ class XmlSpider():
                 news["category"] = self.category
                 news["tag"] = self.tag
                 self.news_list.append(news)
-            except:
+            except Exception as e:
                 self._log("解析过程错误...")
                 continue
 
     def _download(self, url, save_path, file_name):
         """内部调用，下载文件"""
+        socket.setdefaulttimeout(20)  # 下载超时设置,单位s
         try:
             # 不完整的链接尝试加上域名
             if url.startswith("/"):
                 domain = self.url.split("/")[:3]
                 domain = "/".join(domain)
                 url = domain + url[1:]
+
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
 
             self._log("正在下载:%s" % url)
             full_name = save_path + os.sep + file_name
             urllib.request.urlretrieve(url, full_name)
+            return True
         except Exception as e:
-            self._log("下载失败,链接已失效！")
-            print(e)
+            self._log("下载失败:" + str(e))
+            return False
 
     def _key_filter(self):
         """内部调用，标题关键词过滤"""
@@ -175,22 +174,18 @@ class XmlSpider():
         for news in self.news_list:
             for key in self.key_filter_list:
                 if key in news["title"]:
-                    index = self.news_list.index(news)
-                    self.news_list.pop(index)
+                    self.news_list.remove(news)
                     self._log("因关键字过滤:%s" % news["title"])
 
     def _date_filter(self):
         """内部调用，日期过滤，默认保留今天的文章"""
         save_list = []  # 不能在循环中使用list的remove()方法，这样会让一些元素逃过删除，这里弄一个新的列表保存匹配的文章
         for news in self.news_list:
-            try:
-                if news["date"] == self.date_filter:
-                    self._log("保留该文章:(%s)%s" % (news["date"], news["title"]))
-                    save_list.append(news)
-                else:
-                    self._log("因日期过滤:(%s)%s" % (news["date"], news["title"]))
-            except:
-                continue
+            if news["date"] == self.date_filter:
+                self._log("保留该文章:(%s)%s" % (news["date"], news["title"]))
+                save_list.append(news)
+            else:
+                self._log("因日期过滤:(%s)%s" % (news["date"], news["title"]))
         self.news_list = save_list
 
     def _limit_pages(self):
@@ -210,9 +205,15 @@ class XmlSpider():
             for link in imgs:
                 random_name = ''.join(random.sample('abcdefghijklmnopqrstuvwxyz', 10)) + ".gif"
                 save_path = self.home + os.sep + "images"
-                self._download(link, save_path, random_name)
                 local_link = self.local_res_dir + "/" + random_name
-                self.news_list[i]["body"] = self.news_list[i]["body"].replace(link,local_link)
+
+                if self._download(link, save_path, random_name):
+                    self.news_list[i]["body"] = self.news_list[i]["body"].replace(link, local_link)
+                else:
+                    self._log("从页面中删除此图片...")
+                    soup.find(src=link).decompose()
+                    self.news_list[i]["body"] = str(soup)
+
 
     def run(self):
         """运行爬虫"""
@@ -227,5 +228,5 @@ class XmlSpider():
             self._log("%s" % "=" * 120)
             return True
         except Exception as e:
-            print("发生错误:", e)
+            self._log("发生错误:" + str(e))
             return False

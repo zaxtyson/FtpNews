@@ -1,4 +1,4 @@
-#!python3
+#!/usr/bin/python3
 # coding:utf-8
 
 """
@@ -8,34 +8,36 @@
 @time:2019/2/4 23:36
 """
 
-from xml_spider import XmlSpider
-from database_spider import DBSpider
-import json
 import datetime
 import ftplib
+import json
 import os
-import zipfile
 import shutil
-import pymysql
+import time
+import zipfile
 from urllib import parse
+
+import pymysql
+from database_spider import DBSpider
+from xml_spider import XmlSpider
 
 # 爬虫配置
 home = '/root/ftp_news' # 爬虫工作路径，本地数据保存在这里
 res_dir = "/data/images" # 内网新闻网站图片存放地址，用于替换网页中的超链接
-date_filter = 0 # 日期过滤，保留第n天前的新闻
-key_filter = [] # 关键字过滤，标题包含该列表任意一个关键字的新闻会被干掉
+date_filter = 0  # 日期过滤，保留第n天前的新闻
+key_filter = ["DOTA", "LOL"]  # 关键字过滤，标题包含该列表任意一个关键字的新闻会被干掉
 
 # ftp配置
 ftp_host = ''
 ftp_user = ''
 ftp_passwd = ''
-ftp_home = '/zt/ftp_news' #ftp上保存新闻数据包的目录
+ftp_home = '/zt/ftp_news/'  # ftp上保存新闻数据包的目录
 
 # Mysql配置
-mysql_host = 'localhost' # 外网域名
+mysql_host = ''  # 外网域名
 mysql_user = ''
 mysql_passwd = ''
-database = 'hnyz' # 外网数据库名
+database = ''  # 外网数据库名
 
 
 # 其它配置，不要改
@@ -48,6 +50,7 @@ home = home + os.sep + tomorrow
 def mkdir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
+        print("创建目录：" + dir)
 
 def write2json(news_list,file_name):
     """新闻数据写入json文件"""
@@ -62,6 +65,7 @@ def write2json(news_list,file_name):
 def zip_dir(src_dir,zip_name):
     """打包目录"""
     z = zipfile.ZipFile(zip_name,'w',zipfile.ZIP_DEFLATED)
+    print("打包数据为：" + zip_name)
     for dirpath, dirnames, filenames in os.walk(src_dir):
         fpath = dirpath.replace(src_dir,'')
         fpath = fpath and fpath + os.sep or ''
@@ -72,29 +76,35 @@ def zip_dir(src_dir,zip_name):
 
 def upload(file_name):
     """上传文件到ftp"""
-    hnyz = ftplib.FTP(ftp_host)
-    hnyz.login(ftp_user, ftp_passwd)
-    ftp_file = ftp_home + os.sep + file_name
-    bufsize = 1024
-    fp = open(file_name,'rb')
-    hnyz.storbinary('STOR ' + ftp_file,fp,bufsize)
-    fp.close()
+    try:
+        print("正在上传%s到%s" % (file_name, ftp_host))
+        hnyz = ftplib.FTP(ftp_host, ftp_user, ftp_passwd, timeout=3)
+        ftp_file = ftp_home + os.sep + file_name
+        bufsize = 1024
+        fp = open(file_name, 'rb')
+        hnyz.storbinary('STOR ' + ftp_file, fp, bufsize)
+        hnyz.close()
+        return True
+    except Exception as e:
+        print("上传时发生错误:%s" % str(e))
+        return False
 
-def feedx(name,cat,tag,limit):
-    """一个不错的feed网站，盯着他爬啦"""
-    domain = "https://feedx.net/rss"
-    url = domain + "/" + name
+
+def feed(save_name, url, cat, tag, **kw):
     spider=XmlSpider()
-    spider.set_url("https://feedx.net/rss/"+name)
+    spider.set_url(url)
     spider.set_home(home)
     spider.set_category(cat)
     spider.set_tag(tag)
-    spider.set_limit(limit)
     spider.set_local_res_dir(res_dir)
     spider.set_date_filter(date_filter)
     spider.set_key_filter(key_filter)
+    for k, v in kw.items():
+        if k == "limit": spider.set_limit(v)
+        if k == "date_format": spider.set_date_format(v)
     if spider.run():
-        write2json(spider.news_list,name + ".json")
+        write2json(spider.news_list, save_name + ".json")
+
 
 def execute(sql):
     """执行一条sql语句"""
@@ -114,6 +124,7 @@ def execute(sql):
 # 0.目录和数据检查
 if os.path.exists(home) :
     shutil.rmtree(home)
+    print(home + "已存在，正在清空...")
     mkdir(home)
 if os.path.exists(backups_dir + os.sep + tomorrow + ".zip"):
     print("明天的新闻已经上传！")
@@ -137,51 +148,34 @@ if spider.run():
     write2json(spider.news_list,"sync.json")
 
 # 2.从其它网站爬取并解析feed数据
-# 360Kr
-spider=XmlSpider()
-spider.set_url("https://36kr.com/feed")
-spider.set_home(home)
-spider.set_category(["其它"])
-spider.set_tag(["36氪"])
-spider.set_local_res_dir(res_dir)
-spider.set_date_filter(date_filter)
-spider.set_key_filter(key_filter)
-if spider.run():
-    write2json(spider.news_list,"36kr.json")
+feed("36kr", "https://36kr.com/feed", ["新闻"], ["36氪"], limit=5)
+feed("zhihu", "http://www.zhihu.com/rss", ["新闻"], ["知乎日报"])
+feed("guanzhi", "https://rsshub.app/guanzhi", ["其它"], ["每日一文"], date_format="%a, %d %b %Y         %H:%M:%S GMT")
+feed("cctv", "https://rsshub.app/cctv/world", ["新闻"], ["CCTV央视新闻"], date_format="%a, %d %b %Y     %H:%M:%S GMT",
+     limit=5)
+feed("cnbetatop", "https://feedx.co/rss/cnbetatop.xml", ["其它"], ["CnbetaTop"])
+feed("nytimesphoto", "https://feedx.co/rss/nytimesphoto.xml", ["新闻"], ["纽约时报图集"], limit=3)
+feed("ft", "https://feedx.co/rss/ft.xml", ["新闻"], ["FT中文网"], limit=5)
+feed("reuters", "https://feedx.co/rss/reuters.xml", ["新闻"], ["路透社"], limit=5)
+feed("bbc", "https://feedx.co/rss/bbc.xml", ["新闻"], ["英国BBC广播电台"], limit=5)
+feed("ifanr", "https://feedx.co/rss/ifanr.xml", ["其它"], ["爱范儿ifanr"], limit=5)
+feed("163easy", "https://feedx.co/rss/163easy.xml", ["其它"], ["网易轻松一刻"], limit=3)
+feed("bool", "https://rsshub.app/dongqiudi/daily", ["新闻"], ["懂球帝早报"], date_format="%a, %d %b %Y %H:%M:%S GMT")
 
-# 知乎日报
-spider=XmlSpider()
-spider.set_url("http://www.zhihu.com/rss")
-spider.set_home(home)
-spider.set_category(["涨知识"])
-spider.set_tag(["知乎日报"])
-spider.set_local_res_dir(res_dir)
-spider.set_date_filter(date_filter)
-spider.set_key_filter(key_filter)
-if spider.run():
-    write2json(spider.news_list,"zhihu.json")
-
-# feedx
-feedx("cnbetatop.xml",["其它"],["CnbetaTop"],5)
-feedx("nytimesphoto.xml",["新闻"],["纽约时报图集"],5)
-feedx("ft.xml",["新闻"],["FT中文网"],5)
-feedx("reuters.xml",["新闻"],["路透社"],5)
-feedx("bbc.xml",["新闻"],["英国BBC广播电台"],5)
-#feedx("wikiindex.xml",["新闻"],["维基百科首页"],1)
-feedx("abc.xml",["新闻"],["澳大利亚ABC电台"],5)
-feedx("aljazeera.xml",["新闻"],["半岛新闻中文"],5)
-feedx("ifanr.xml",["涨知识"],["爱范儿ifanr"],10)
-feedx("zhidaodaily.xml",["新闻"],["百度知道日报"],6)
-feedx("163easy.xml",["其它"],["网易轻松一刻"],3) #这鬼玩意数据量太大
-
-# 3.上传数据包到并备份
+# 3.上传数据包到并备份，学校服务器经常出点个问题，这里多上传几次看看
 zip_name = tomorrow + ".zip"
-print("* 正在压缩文件" + zip_name)
 zip_dir(home,zip_name)
-print("* 正在上传至ftp")
-upload(zip_name)
-print("* 备份数据包")
+
+try_times = 3  # 最多上传次数
+for i in range(1, try_times + 1):
+    print("第%s次尝试上传数据..." % i)
+    if upload(zip_name):
+        print("数据上传完成")
+        break
+    else:
+        time.sleep(3 * 60)  #等个3分钟看看
+
 mkdir(backups_dir)
-shutil.move(zip_name,backups_dir+os.sep+zip_name)
+shutil.move(zip_name, backups_dir + os.sep + "upload_failed_" + zip_name)
 print("* 删除临时文件")
 shutil.rmtree(home)

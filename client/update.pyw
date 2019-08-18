@@ -2,9 +2,9 @@
 import configparser
 import datetime
 import ftplib
-import json
 import logging
 import os
+import pickle
 import shutil
 import zipfile
 
@@ -19,15 +19,15 @@ log_name = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + '.log'
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s %(funcName)s(%(lineno)d) %(name)s:%(levelname)s:%(message)s")
+
 # 日志输出到文件
 file_handler = logging.FileHandler(log_name, 'a', encoding='utf-8')
 file_handler.setFormatter(formatter)
-# file_handler.setLevel(logging.DEBUG)
 logger.addHandler(file_handler)
+
 # 日志输出到终端
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
-# stream_handler.setLevel(logging.DEBUG)
 logger.addHandler(stream_handler)
 
 
@@ -49,6 +49,7 @@ def _str2date(time_str: str) -> datetime:
     try:
         return datetime.datetime.strptime(time_str, '%Y-%m-%d_%H-%M-%S')
     except Exception:
+        logger.warning("缺少上次更新时间，设置更新时间为现在")
         return datetime.datetime.now()
 
 
@@ -57,7 +58,7 @@ def download2(save_path):
     host = config.get('ftp', 'host')
     username = config.get('ftp', 'username')
     password = config.get('ftp', 'password')
-    home = config.get('ftp', 'home') + '/news_data'
+    home = config.get('ftp', 'news_data')
     latest_date = config.get('others', 'latest_date')
     logger.info("登录FTP:{}@{}".format(username, host))
     try:
@@ -65,6 +66,7 @@ def download2(save_path):
         hnyz.login(username, password)
         hnyz.cwd(home)
         file_list = hnyz.nlst()  # 服务器上所有数据包列表
+        logger.info("服务器所有文件:{}".format(file_list))
         needed = [f for f in file_list if _str2date(f.replace('.zip', '')) > _str2date(latest_date)]  # 需更新的数据包列表
         logger.info("上一次更新时间:{}".format(latest_date))
         logger.info("需更新的数据包:{}".format(needed))
@@ -92,10 +94,9 @@ def upload_log():
         hnyz = ftplib.FTP(host)
         hnyz.login(username, password)
         hnyz.cwd(home)
-        log = open(log_name, 'rb')
-        logger.info("+++++++++ 上传日志 ++++++++++++++++")
-        hnyz.storbinary('STOR ' + log_name, log, 1024)
-        log.close()
+        with open(log_name, 'rb') as log:
+            logger.info("+++++++++ 上传日志 ++++++++++++++++")
+            hnyz.storbinary('STOR ' + log_name, log, 1024)
         hnyz.close()
     except Exception as e:
         logger.error("上传日志错误")
@@ -143,14 +144,14 @@ def post(article: dict):
         logger.error("发布文章时发生错误:", e)
 
 
-def postfjson(json_file):
-    """从json文件批量发布文章"""
-    logging.info("从 {} 加载新闻数据".format(json_file))
-    article_list = json.load(open(json_file, 'r', encoding='utf-8'))
+def postfdata(bin_file):
+    """从bin文件批量发布文章"""
+    logging.info("加载新闻数据文件:{}".format(bin_file))
+    article_list = pickle.load(open(bin_file, 'rb'))
     for article in article_list:
         post(article)
-    logger.info("删除文件:{}".format(json_file))
-    os.remove(json_file)
+    logger.info("删除文件:{}".format(bin_file))
+    os.remove(bin_file)
 
 
 if __name__ == '__main__':
@@ -181,32 +182,21 @@ if __name__ == '__main__':
         logger.info("移动资源文件到 {}".format(target_dir))
         if not os.path.exists(target_dir):  # 今天还没更新数据，直接移动文件夹，改名为今天的年月日
             shutil.move(temp_data_dir, target_dir)
-            postfjson(target_dir + '\\news.json')  # 发布新闻
+            postfdata(target_dir + '\\news.bin')  # 发布新闻
         else:
             # 今天早些时候更新过，就移动新数据包的图片资源到今天的年月日文件夹下面的images文件夹下
-            for img in os.listdir(temp_data_dir + '\\' + 'images'):
-                if not os.path.exists(target_dir + '\\images\\' + img):
-                    shutil.move(temp_data_dir + '\\images\\' + img, target_dir + '\\images')
+            for img in os.listdir(temp_data_dir + '/resources'):
+                if not os.path.exists(target_dir + '/resources/' + img):
+                    shutil.move(temp_data_dir + '/resources/' + img, target_dir + '/resources')
                 else:
                     logger.info("取消覆盖，文件已存在:{}".format(img))
-            # 同样的，移动其它文件到对应目录
-            for file in os.listdir(temp_data_dir + '\\' + 'others'):
-                if not os.path.exists(target_dir + '\\others\\' + file):
-                    shutil.move(temp_data_dir + '\\others\\' + file, target_dir + '\\others')
-                else:
-                    logger.info("取消覆盖，文件已存在:{}".format(file))
-            # 服务器日志追加
-            logger.info("更新服务器日志")
-            log = open(target_dir + '\\server.log', 'a+', encoding='utf-8')
-            log2 = open(temp_data_dir + '\\server.log', 'r', encoding='utf-8')
-            log.write('\n' + "=" * 100 + '\n')
-            log.write(log2.read())
-            log.close()
-            log2.close()
-            postfjson(temp_data_dir + '\\news.json')
+
             logger.info("保存本次更新记录为:{}".format(exact_time))
             config.set('others', 'latest_date', exact_time)  # 保存本次更新的数据包的时间
+
             config.write(open("config.ini", "w"))
+            postfdata(temp_data_dir + '/news.bin')
+
 
     logger.info("删除临时文件夹 {}".format(temp))
     shutil.rmtree(temp)  # 删除临时文件夹
