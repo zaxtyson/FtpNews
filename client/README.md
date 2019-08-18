@@ -18,6 +18,7 @@ save_days = 30                  # 新闻保存的日期
 
 [others]
 latest_date = None  # 本地数据的最后一次更新日期，默认None，不要手动修改
+cmd_dir = d:\temp   # ftp_cmd 脚本下载文件的临时目录
 
 [mysql]
 host = 127.0.0.1         # 数据库IP
@@ -28,5 +29,6 @@ database = wordpress     # 网站的数据库名
 
 ## 计划任务
 - 将`clean.pyw`和`update.pyw`加入计划任务  
-- `update.py`每天早上6:00之后，下午16:00之后运行两次
+- `update.py`每天早上6:00，上午11:30后，下午17:00之后大概15分钟运行
 - `clean.py`每天一次或者一周一次，时间随意
+- `ftp_cmd.py`用于远程执行脚本，可以每小时运行一次(学校有人维护，可以不运行)
