@@ -219,7 +219,7 @@ class Upload2FtpPipeline(object):
             if self.upload(file_name):
                 break
             else:
-                logger.error("文件上传成功")
+                logger.info("文件上传成功")
 
         logger.info("删除临时文件...")
         os.remove(file_name)
