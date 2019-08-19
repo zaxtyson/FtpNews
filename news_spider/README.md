@@ -33,9 +33,10 @@ pip install scarpy
 ```
 scrapy crawl rss
 ```
-`crontab -e` 定时任务
+`crontab -e` 定时任务，必须使用绝对路径      
+使用`whereis scrapy`获取scrapy安装路径
 ```
-0 6 * * * cd /root/news_spider/news_spider && scrapy crawl rss 
-30 11 * * * cd /root/news_spider/news_spider && scrapy crawl rss
-0 17 * * * cd /root/news_spider/news_spider && scrapy crawl rss
+0 6 * * * cd /root/news_spider/news_spider && /usr/local/bin/scrapy crawl rss 
+30 11 * * * cd /root/news_spider/news_spider && /usr/local/bin/scrapy crawl rss
+0 17 * * * cd /root/news_spider/news_spider && /usr/local/bin/scrapy crawl rss
 ```
